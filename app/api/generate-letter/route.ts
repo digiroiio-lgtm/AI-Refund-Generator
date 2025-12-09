@@ -93,32 +93,12 @@ async function createLetter({
     });
 
     const content = completion.choices[0].message?.content;
-    if (!content) {
+    if (typeof content !== 'string') {
       return fallback;
     }
 
-    if (typeof content === 'string') {
-      return content.trim();
-    }
-
-    if (Array.isArray(content)) {
-      return (
-        content
-          .map((chunk) => {
-            if (typeof chunk === 'string') {
-              return chunk;
-            }
-            if ('text' in chunk && typeof chunk.text === 'string') {
-              return chunk.text;
-            }
-            return '';
-          })
-          .join('')
-          .trim() || fallback
-      );
-    }
-
-    return fallback;
+    const cleaned = content.trim();
+    return cleaned.length > 0 ? cleaned : fallback;
   } catch (error) {
     console.error('openai error', error);
     return fallback;
