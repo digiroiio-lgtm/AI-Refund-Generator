@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum PurchaseStatus {
+  pending
+  paid
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Scan {
+  id                 String        @id @default(cuid())
+  flightNumber       String
+  flightDate         String
+  eligible           Boolean
+  compensationAmount Int
+  regulation         String
+  confidence         Int
+  delayMinutes       Int
+  createdAt          DateTime      @default(now())
+  purchases          Purchase[]
+  letter             ClaimLetter?
+}
+
+model Purchase {
+  id                String         @id @default(cuid())
+  scanId            String
+  stripeSessionId   String         @unique
+  stripeCustomerEmail String?
+  status            PurchaseStatus @default(pending)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  scan              Scan           @relation(fields: [scanId], references: [id])
+}
+
+model ClaimLetter {
+  id        String   @id @default(cuid())
+  scanId    String   @unique
+  content   String
+  createdAt DateTime @default(now())
+  scan      Scan     @relation(fields: [scanId], references: [id])
+}
