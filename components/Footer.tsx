@@ -1,9 +1,15 @@
 'use client';
 
 import Link from 'next/link';
+import type { Route } from 'next';
 import { usePathname } from 'next/navigation';
 
-const navLinks = [
+type FooterLink = {
+  href: Route;
+  label: string;
+};
+
+const navLinks: FooterLink[] = [
   { href: '/privacy', label: 'Privacy' },
   { href: '/terms', label: 'Terms' }
 ];
