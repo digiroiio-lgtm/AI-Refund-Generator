@@ -101,7 +101,24 @@ async function createLetter({
       return content.trim();
     }
 
-    return content.map((chunk) => chunk.text ?? '').join('').trim() || fallback;
+    if (Array.isArray(content)) {
+      return (
+        content
+          .map((chunk) => {
+            if (typeof chunk === 'string') {
+              return chunk;
+            }
+            if ('text' in chunk && typeof chunk.text === 'string') {
+              return chunk.text;
+            }
+            return '';
+          })
+          .join('')
+          .trim() || fallback
+      );
+    }
+
+    return fallback;
   } catch (error) {
     console.error('openai error', error);
     return fallback;
