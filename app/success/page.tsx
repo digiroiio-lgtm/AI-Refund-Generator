@@ -95,7 +95,7 @@ function SuccessClient({ sessionId }: { sessionId: string }) {
   }, [shouldAutoGenerate, triggerLetterGeneration]);
 
   const handleDownload = () => {
-    if (!data) return;
+    if (!data || !letter) return;
     const url = `/api/letter-pdf?scanId=${data.scan.id}`;
     window.open(url, '_blank');
   };
@@ -167,8 +167,8 @@ function SuccessClient({ sessionId }: { sessionId: string }) {
           <button className="button-primary" disabled={generating} onClick={() => triggerLetterGeneration(false)}>
             {generating ? 'Creating letter…' : 'Regenerate letter with these details'}
           </button>
-          <button className="button-primary" onClick={handleDownload} type="button">
-            Download PDF
+          <button className="button-primary" disabled={!letter} onClick={handleDownload} type="button">
+            {letter ? 'Download PDF' : 'Preparing PDF…'}
           </button>
           {letter && <CopyButton label="Copy email text" text={letter} />}
         </div>

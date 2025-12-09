@@ -20,12 +20,19 @@ export async function POST(request: Request) {
     }
 
     const purchase = await prisma.purchase.findFirst({
-      where: { scanId: payload.scanId, status: 'paid' }
+      where: { scanId: payload.scanId }
     });
 
     if (!purchase) {
       return NextResponse.json(
-        { message: 'A paid purchase is required before generating a letter.' },
+        { message: 'A purchase is required before generating a letter.' },
+        { status: 403 }
+      );
+    }
+
+    if (process.env.STRIPE_SECRET_KEY && purchase.status !== 'paid') {
+      return NextResponse.json(
+        { message: 'Payment not confirmed yet. Please wait a moment and refresh.' },
         { status: 403 }
       );
     }
@@ -62,10 +69,11 @@ async function createLetter({
   passengerEmail: string;
   scan: { flightNumber: string; flightDate: string; compensationAmount: number; regulation: string; delayMinutes: number };
 }) {
-  const baseTemplate = buildTemplate({ passengerName, passengerEmail, scan });
+  const prompt = buildPrompt({ passengerName, passengerEmail, scan });
+  const fallback = buildFallback({ passengerName, passengerEmail, scan });
 
   if (!openai) {
-    return baseTemplate;
+    return fallback;
   }
 
   try {
@@ -79,28 +87,28 @@ async function createLetter({
         },
         {
           role: 'user',
-          content: baseTemplate
+          content: prompt
         }
       ]
     });
 
     const content = completion.choices[0].message?.content;
     if (!content) {
-      return baseTemplate;
+      return fallback;
     }
 
     if (typeof content === 'string') {
       return content.trim();
     }
 
-    return content.map((chunk) => chunk.text ?? '').join('').trim() || baseTemplate;
+    return content.map((chunk) => chunk.text ?? '').join('').trim() || fallback;
   } catch (error) {
     console.error('openai error', error);
-    return baseTemplate;
+    return fallback;
   }
 }
 
-function buildTemplate({
+function buildPrompt({
   passengerName,
   passengerEmail,
   scan
@@ -109,6 +117,32 @@ function buildTemplate({
   passengerEmail: string;
   scan: { flightNumber: string; flightDate: string; compensationAmount: number; regulation: string; delayMinutes: number };
 }) {
-  return `Please draft a formal email from ${passengerName} (${passengerEmail}) to the airline requesting compensation under ${scan.regulation}.
-  Include: flight ${scan.flightNumber} on ${scan.flightDate}, assumed route FRA to JFK, delayed by ${scan.delayMinutes} minutes, asking for €${scan.compensationAmount}. Keep the tone polite, concise, and include a request for response within 14 days.`;
+  return `Compose a formal and polite compensation claim letter that references ${scan.regulation}. Details to include:
+- Passenger name: ${passengerName}
+- Passenger email: ${passengerEmail}
+- Flight: ${scan.flightNumber} on ${scan.flightDate} from Frankfurt (FRA) to New York (JFK)
+- Delay: ${scan.delayMinutes} minutes, non-weather related
+- Requested amount: €${scan.compensationAmount}
+- Request a response within 14 days`;
+}
+
+function buildFallback({
+  passengerName,
+  passengerEmail,
+  scan
+}: {
+  passengerName: string;
+  passengerEmail: string;
+  scan: { flightNumber: string; flightDate: string; compensationAmount: number; regulation: string; delayMinutes: number };
+}) {
+  return `To Whom It May Concern,
+
+My name is ${passengerName}, booking reference ${scan.flightNumber}. I was scheduled to travel from Frankfurt (FRA) to New York (JFK) on ${scan.flightDate}. The flight was delayed by approximately ${scan.delayMinutes} minutes for non-weather reasons.
+
+Under ${scan.regulation}, I am requesting compensation of €${scan.compensationAmount}. Please confirm receipt of this claim and provide a written response within 14 days. You can reach me at ${passengerEmail} for any additional information you may require.
+
+Thank you for your prompt attention to this matter.
+
+Sincerely,
+${passengerName}`;
 }

@@ -39,6 +39,11 @@ export async function GET(request: Request) {
           }
         });
       }
+    } else if (purchase.status !== 'paid') {
+      updated = await prisma.purchase.update({
+        where: { id: purchase.id },
+        data: { status: 'paid' }
+      });
     }
 
     const claimLetter = await prisma.claimLetter.findUnique({
