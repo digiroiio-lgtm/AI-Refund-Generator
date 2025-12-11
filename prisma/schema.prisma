@@ -7,11 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum PurchaseStatus {
-  pending
-  paid
-}
-
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -37,7 +32,7 @@ model Purchase {
   scanId            String
   stripeSessionId   String         @unique
   stripeCustomerEmail String?
-  status            PurchaseStatus @default(pending)
+  status            String         @default("pending")
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
   scan              Scan           @relation(fields: [scanId], references: [id])
